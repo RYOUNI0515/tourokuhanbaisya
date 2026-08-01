@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F7A63">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>登録販売者 過去問トレーナー</title>
+<style>
+:root{
+  --bg:#E9EEED; --surface:#FFFFFF; --surface-2:#F5F8F7;
+  --ink:#14202A; --sub:#66787F; --line:#D3DDDB;
+  --sei:#0F7A63; --sei-soft:#D8EBE5;
+  --go:#B23A32; --go-soft:#F6DEDC;
+  --unknown:#A7B3B8; --review:#B9761C; --review-soft:#F7E9D5;
+  --fs:16px; --lh:1.85;
+  --pad:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
+  font-size:var(--fs); line-height:var(--lh);
+  -webkit-text-size-adjust:100%;
+  padding-bottom:96px;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+
+/* ---- header ---- */
+header{
+  position:sticky;top:0;z-index:40;background:rgba(233,238,237,.94);
+  backdrop-filter:blur(8px); border-bottom:1px solid var(--line);
+  padding:calc(env(safe-area-inset-top) + 8px) var(--pad) 8px;
+}
+.hrow{display:flex;align-items:center;gap:8px}
+.brand{font-size:.72rem;letter-spacing:.18em;color:var(--sub);font-weight:700}
+.spacer{flex:1}
+.chip{
+  border:1px solid var(--line);background:var(--surface);border-radius:999px;
+  padding:5px 12px;font-size:.78rem;font-weight:600;white-space:nowrap
+}
+.chip:active{background:var(--surface-2)}
+.qmeta{display:flex;gap:10px;align-items:baseline;margin-top:6px;font-size:.76rem;color:var(--sub)}
+.qno{font-size:1.05rem;font-weight:800;color:var(--ink);letter-spacing:.02em}
+
+/* ---- card ---- */
+main{padding:var(--pad);max-width:900px;margin:0 auto}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.stem{font-weight:600}
+.eyebrow{font-size:.68rem;letter-spacing:.16em;color:var(--sub);font-weight:700;margin-bottom:10px}
+
+/* ---- statements ---- */
+.st{border-top:1px solid var(--line);padding:14px 0}
+.st:first-of-type{border-top:none}
+.st-head{display:flex;gap:10px;align-items:flex-start}
+.st-label{
+  flex:0 0 auto;width:26px;height:26px;border-radius:8px;background:var(--surface-2);
+  border:1px solid var(--line);display:grid;place-items:center;font-weight:800;font-size:.82rem;margin-top:2px
+}
+.st-text{flex:1;min-width:0;overflow-wrap:anywhere}
+/* 判定パッド：PTPシート風 */
+.pad{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:10px}
+.pad button{
+  border:1px solid var(--line);background:var(--surface-2);border-radius:9px;
+  padding:9px 0;font-size:.88rem;font-weight:700;text-align:center;transition:.12s
+}
+.pad button[data-k="O"].on,.pad button[data-k="o"].on{background:var(--sei);border-color:var(--sei);color:#fff}
+.pad button[data-k="o"].on{background:var(--sei-soft);color:var(--sei);border-color:var(--sei)}
+.pad button[data-k="?"].on{background:var(--unknown);border-color:var(--unknown);color:#fff}
+.pad button[data-k="x"].on{background:var(--go-soft);color:var(--go);border-color:var(--go)}
+.pad button[data-k="X"].on{background:var(--go);border-color:var(--go);color:#fff}
+
+/* ---- 候補パネル（シグネチャ） ---- */
+.matrix{width:100%;border-collapse:separate;border-spacing:3px;margin-top:4px}
+.matrix th{font-size:.72rem;color:var(--sub);font-weight:700;padding:2px}
+.matrix td{padding:0}
+.mnum{
+  width:2.4em;text-align:center;font-weight:800;border-radius:8px;padding:8px 0;
+  background:var(--surface-2);border:1px solid var(--line)
+}
+.cell{
+  text-align:center;padding:8px 0;border-radius:8px;font-weight:700;font-size:.86rem;
+  border:1px solid var(--line);background:var(--surface-2);color:var(--sub)
+}
+.cell.hit{background:var(--sei);color:#fff;border-color:var(--sei)}
+.cell.softhit{background:var(--sei-soft);color:var(--sei);border-color:var(--sei-soft)}
+.cell.miss{background:var(--go);color:#fff;border-color:var(--go)}
+.cell.softmiss{background:var(--go-soft);color:var(--go);border-color:var(--go-soft)}
+tr.dead .mnum,tr.dead .cell{opacity:.3}
+tr.dead .mnum{text-decoration:line-through}
+tr.alive .mnum{background:var(--ink);color:#fff;border-color:var(--ink)}
+tr.correct .mnum{box-shadow:0 0 0 2px var(--sei)}
+.verdict{margin-top:12px;font-size:.86rem;font-weight:600}
+.verdict.ok{color:var(--sei)} .verdict.warn{color:var(--go)}
+
+/* ---- 答え合わせ ---- */
+.res{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:.82rem;font-weight:700}
+.tag{border-radius:999px;padding:3px 10px;font-size:.75rem}
+.tag.sei{background:var(--sei-soft);color:var(--sei)}
+.tag.go{background:var(--go-soft);color:var(--go)}
+.tag.bad{background:var(--go);color:#fff}
+.explain{margin-top:8px;padding:12px;background:var(--surface-2);border-radius:10px;font-size:.94em;white-space:pre-wrap;overflow-wrap:anywhere}
+.mark{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+.mark button{border:1px solid var(--line);border-radius:10px;padding:11px 4px;font-size:.82rem;font-weight:700;background:var(--surface-2)}
+.mark button.on[data-m="ok"]{background:var(--sei);color:#fff;border-color:var(--sei)}
+.mark button.on[data-m="soft"]{background:var(--review-soft);color:var(--review);border-color:var(--review)}
+.mark button.on[data-m="ng"]{background:var(--go);color:#fff;border-color:var(--go)}
+
+/* ---- 画像 ---- */
+.qimg{width:100%;border:1px solid var(--line);border-radius:10px;display:block;background:#fff}
+.imgwrap{overflow:auto;-webkit-overflow-scrolling:touch}
+
+/* ---- bottom bar ---- */
+.bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;gap:8px;
+  padding:10px var(--pad) calc(env(safe-area-inset-bottom) + 10px);
+  background:rgba(233,238,237,.96);backdrop-filter:blur(8px);border-top:1px solid var(--line)
+}
+.bar button{flex:1;border-radius:12px;padding:14px 6px;font-weight:800;font-size:.92rem;border:1px solid var(--line);background:var(--surface)}
+.bar button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.bar button:disabled{opacity:.4}
+
+/* ---- sheet ---- */
+.sheet{position:fixed;inset:0;z-index:100;background:rgba(20,32,42,.4);display:none}
+.sheet.open{display:block}
+.sheet-in{
+  position:absolute;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;background:var(--bg);
+  border-radius:18px 18px 0 0;padding:18px var(--pad) calc(env(safe-area-inset-bottom) + 24px)
+}
+.sheet h2{font-size:1rem;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+.grid label{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px;font-size:.8rem}
+.row{display:flex;gap:8px;align-items:center;margin:14px 0}
+input[type=range]{width:100%}
+.note{font-size:.76rem;color:var(--sub);line-height:1.7}
+.empty{text-align:center;color:var(--sub);padding:48px 12px}
+.guess{display:inline-block;font-size:.66rem;font-weight:700;letter-spacing:.08em;
+  background:var(--review-soft);color:var(--review);border-radius:5px;padding:2px 7px;margin-left:6px;vertical-align:.15em}
+/* 表が無い問題用：自分の判定を画像の隣に固定表示 */
+.strip{position:sticky;top:78px;z-index:20;display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+.strip div{
+  display:flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--line);
+  border-radius:9px;padding:6px 10px;font-weight:800;font-size:.85rem;box-shadow:0 1px 3px rgba(20,32,42,.06)}
+.strip .v{font-size:.95rem}
+.strip .sei{color:var(--sei)} .strip .go{color:var(--go)} .strip .un{color:var(--unknown)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <span class="brand">登録販売者 過去問トレーナー</span>
+    <span class="spacer"></span>
+    <button class="chip" id="btnScope">範囲</button>
+    <button class="chip" id="btnSet">表示</button>
+  </div>
+  <div class="qmeta">
+    <span class="qno" id="mNo">—</span>
+    <span id="mSrc"></span>
+    <span class="spacer"></span>
+    <span class="mono" id="mProg"></span>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<div class="bar">
+  <button id="btnPrev">前へ</button>
+  <button id="btnCheck" class="primary">答え合わせ</button>
+  <button id="btnNext">次へ</button>
+</div>
+
+<!-- 範囲 -->
+<div class="sheet" id="shScope"><div class="sheet-in">
+  <h2>出題範囲</h2>
+  <p class="note">初期状態は全都道府県・全年度。チェックを外した分だけ絞り込みます。</p>
+  <div class="row"><strong style="font-size:.82rem">都道府県</strong><span class="spacer"></span>
+    <button class="chip" data-all="pref">全選択</button><button class="chip" data-none="pref">全解除</button></div>
+  <div class="grid" id="gPref"></div>
+  <div class="row"><strong style="font-size:.82rem">年度</strong><span class="spacer"></span>
+    <button class="chip" data-all="year">全選択</button><button class="chip" data-none="year">全解除</button></div>
+  <div class="grid" id="gYear"></div>
+  <div class="row"><strong style="font-size:.82rem">出題順</strong></div>
+  <div class="grid" id="gMode"></div>
+  <div class="row"><button class="chip" id="btnApply" style="flex:1;padding:13px;background:var(--ink);color:#fff;border-color:var(--ink)">この範囲で始める</button></div>
+</div></div>
+
+<!-- 表示設定 -->
+<div class="sheet" id="shSet"><div class="sheet-in">
+  <h2>表示</h2>
+  <div class="row"><span style="font-size:.82rem;white-space:nowrap">文字サイズ</span><input type="range" id="rgFs" min="13" max="26" step="1"></div>
+  <div class="row"><label style="display:flex;gap:8px;align-items:center;font-size:.85rem"><input type="checkbox" id="ckImg"> 原本画像を表示する</label></div>
+  <p class="note">本文はテキストなので、文字を大きくしても画面幅で自動的に折り返します。原本画像は組合せ表を見るために既定でオン。ピンチと横スクロールで拡大できます。</p>
+  <div class="row"><button class="chip" id="btnLoad" style="flex:1;padding:12px">問題データ（JSON）を読み込む</button></div>
+  <input type="file" id="fileJson" accept=".json" hidden>
+  <div class="row"><button class="chip" id="btnReset" style="flex:1;padding:12px;color:var(--go)">学習記録を消去</button></div>
+  <p class="note" id="dataInfo"></p>
+</div></div>
+
+<script>
+/* ============ 判定レベル ============ */
+const LEVELS=[
+  {k:'O',label:'○',  w:'正',strong:true},
+  {k:'o',label:'△○',w:'正',strong:false},
+  {k:'?',label:'△?', w:null,strong:false},
+  {k:'x',label:'△✕',w:'誤',strong:false},
+  {k:'X',label:'✕',  w:'誤',strong:true},
+];
+const byK=k=>LEVELS.find(l=>l.k===k);
+
+/* ============ 保存（サンドボックスでも落ちない） ============ */
+const mem={};
+const store={
+  get(k){try{return localStorage.getItem(k)}catch(e){return mem[k]??null}},
+  set(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},
+  del(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}
+};
+const loadJSON=(k,d)=>{try{return JSON.parse(store.get(k))??d}catch(e){return d}};
+const saveJSON=(k,v)=>store.set(k,JSON.stringify(v));
+
+/* 問題データは数MBになるので IndexedDB に置く */
+const idb={
+  open(){return new Promise((res,rej)=>{
+    const r=indexedDB.open('trh',1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('kv');
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  })},
+  async get(k){try{const d=await this.open();return await new Promise(res=>{
+    const q=d.transaction('kv').objectStore('kv').get(k);
+    q.onsuccess=()=>res(q.result); q.onerror=()=>res(null);
+  })}catch(e){return null}},
+  async set(k,v){try{const d=await this.open();return await new Promise(res=>{
+    const q=d.transaction('kv','readwrite').objectStore('kv').put(v,k);
+    q.onsuccess=()=>res(true); q.onerror=()=>res(false);
+  })}catch(e){return false}},
+  async clear(){try{const d=await this.open();d.transaction('kv','readwrite').objectStore('kv').clear()}catch(e){}}
+};
+
+/* ============ デモデータ（構造確認用のダミー問題） ============ */
+/* 実データは scraper.py が同じ形の JSON を吐きます */
+const DEMO=[
+  {
+    id:"demo-r6-001",prefName:"デモ県",yearName:"令和6年度",no:1,
+    subject:"基本知識",theme:"医薬品の本質",type:"seigo",
+    stem:"次の記述の正誤について、正しい組合せはどれか。",
+    labels:["a","b","c","d"],
+    statements:[
+      {label:"a",text:"（ダミー本文a）製造販売業者からの情報に日頃から留意しておくことが重要である。",truth:"正",explain:"そのとおりの記述。回収情報は販売現場に直結するため、常時確認が必要。"},
+      {label:"b",text:"（ダミー本文b）必要な情報が適切に伝達されて初めて役割を十分に発揮する。",truth:"正",explain:"情報提供が前提になっているという趣旨。"},
+      {label:"c",text:"（ダミー本文c）健康被害の可能性の有無にかかわらず、異物混入等のあるものは販売してはならない。",truth:"正",explain:"「可能性の有無にかかわらず」がポイント。"},
+      {label:"d",text:"（ダミー本文d）有効性は市販前に十分確認されているため、市販後の確認は行われない。",truth:"誤",explain:"市販後にも確認は行われる。GPSP・GVPを想起する。"}
+    ],
+    options:[
+      {no:1,pattern:{a:"正",b:"正",c:"正",d:"誤"}},
+      {no:2,pattern:{a:"正",b:"誤",c:"正",d:"正"}},
+      {no:3,pattern:{a:"誤",b:"正",c:"誤",d:"正"}},
+      {no:4,pattern:{a:"正",b:"正",c:"誤",d:"誤"}},
+      {no:5,pattern:{a:"誤",b:"誤",c:"正",d:"正"}}
+    ],
+    answer:1
+  },
+  {
+    id:"demo-r6-002",prefName:"デモ県",yearName:"令和6年度",no:2,
+    subject:"基本知識",theme:"組合せ型",type:"kumiawase",
+    stem:"次の記述のうち、正しいものの組合せはどれか。",
+    labels:["a","b","c","d"],
+    statements:[
+      {label:"a",text:"（ダミー本文a）正しい記述。",truth:"正",explain:"正しい。"},
+      {label:"b",text:"（ダミー本文b）誤った記述。",truth:"誤",explain:"ここが誤り。"},
+      {label:"c",text:"（ダミー本文c）正しい記述。",truth:"正",explain:"正しい。"},
+      {label:"d",text:"（ダミー本文d）誤った記述。",truth:"誤",explain:"ここが誤り。"}
+    ],
+    options:[
+      {no:1,pattern:{a:"正",b:"正",c:"誤",d:"誤"},raw:"（a,b）"},
+      {no:2,pattern:{a:"正",b:"誤",c:"正",d:"誤"},raw:"（a,c）"},
+      {no:3,pattern:{a:"誤",b:"正",c:"誤",d:"正"},raw:"（b,d）"},
+      {no:4,pattern:{a:"誤",b:"誤",c:"正",d:"正"},raw:"（c,d）"}
+    ],
+    answer:2
+  },
+  {
+    id:"demo-r6-003",prefName:"デモ県",yearName:"令和6年度",no:3,
+    subject:"人体",theme:"単純択一（誤りを1つ）",type:"tantoku",
+    stem:"次の記述のうち、誤っているものはどれか。",
+    labels:["1","2","3","4","5"],
+    statements:[
+      {label:"1",text:"（ダミー本文1）正しい記述。",truth:"正",explain:"正しい。"},
+      {label:"2",text:"（ダミー本文2）正しい記述。",truth:"正",explain:"正しい。"},
+      {label:"3",text:"（ダミー本文3）誤った記述。",truth:"誤",explain:"ここが誤り。"},
+      {label:"4",text:"（ダミー本文4）正しい記述。",truth:"正",explain:"正しい。"},
+      {label:"5",text:"（ダミー本文5）正しい記述。",truth:"正",explain:"正しい。"}
+    ],
+    options:[1,2,3,4,5].map(n=>({no:n,pattern:Object.fromEntries([1,2,3,4,5].map(m=>[String(m),m===n?"誤":"正"]))})),
+    answer:3
+  }
+];
+
+/* ============ 状態 ============ */
+let BANK   = DEMO;
+let cfg    = loadJSON('trh.cfg', {prefs:null,years:null,mode:'seq',fs:16,img:false});
+let prog   = loadJSON('trh.prog', {});      // id -> {mark:'ok|soft|ng', at}
+let queue=[], idx=0, ans={}, revealed=false, showCands=false;
+
+const uniq=a=>[...new Set(a)];
+const allPrefs=()=>uniq(BANK.map(q=>q.prefName));
+const allYears=()=>uniq(BANK.map(q=>q.yearName));
+
+function buildQueue(){
+  const P=cfg.prefs, Y=cfg.years;
+  let list=BANK.filter(q=>(!P||P.includes(q.prefName))&&(!Y||Y.includes(q.yearName)));
+  if(cfg.mode==='review') list=list.filter(q=>['ng','soft'].includes(prog[q.id]?.mark));
+  if(cfg.mode==='rand')   list=list.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(v=>v[1]);
+  else list.sort((a,b)=> (a.prefName+a.yearName).localeCompare(b.prefName+b.yearName) || a.no-b.no);
+  queue=list; idx=0; resetQ();
+}
+function resetQ(){ans={};revealed=false;showCands=false;render()}
+
+/* ============ 候補計算 ============ */
+function cellState(k,val){
+  if(!k||k==='?') return '';
+  const L=byK(k), match=(L.w===val);
+  return L.strong ? (match?'hit':'miss') : (match?'softhit':'softmiss');
+}
+function evaluate(q){
+  return q.options.map(o=>{
+    let hard=0,hit=0,soft=0,sm=0;
+    q.labels.forEach(l=>{
+      const s=cellState(ans[l],o.pattern[l]);
+      if(s==='miss')hard++; else if(s==='hit')hit++; else if(s==='softhit')soft++; else if(s==='softmiss')sm++;
+    });
+    return {o,hard,hit,soft,sm,alive:hard===0,score:hit*2+soft-sm*1.5};
+  });
+}
+
+/* ============ 描画 ============ */
+const app=document.getElementById('app');
+const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function render(){
+  const q=queue[idx];
+  document.getElementById('mProg').textContent = queue.length?`${idx+1} / ${queue.length}`:'';
+  if(!q){
+    document.getElementById('mNo').textContent='—';
+    document.getElementById('mSrc').textContent='';
+    app.innerHTML=`<div class="empty">この範囲に問題がありません。<br>「範囲」から選び直してください。</div>`;
+    return;
+  }
+  document.getElementById('mNo').textContent=`第${q.no}問`;
+  document.getElementById('mSrc').textContent=`${q.prefName}・${q.yearName}／${q.subject||''} ${q.theme||''}`;
+
+  const evals=evaluate(q);
+  const alive=evals.filter(e=>e.alive);
+  const answered=q.labels.every(l=>ans[l]&&ans[l]!=='?');
+
+  let h='';
+  h+=`<div class="card"><div class="eyebrow">問題</div><div class="stem">${esc(q.stem||'（問題文は原本画像を参照）')}`+
+     (q.stemGuess?`<span class="guess">推定</span>`:'')+`</div>`;
+  if(cfg.img&&q.image) h+=`<div class="imgwrap" style="margin-top:12px"><img class="qimg" src="${esc(q.image)}" alt="原本"></div>`;
+  h+=`</div>`;
+
+  /* 組合せ表が無い問題：自分の判定を画面上部に貼り付けて、暗記せずに原本と照合できるようにする */
+  const hasOpts=Array.isArray(q.options)&&q.options.length;
+  if(!hasOpts){
+    h+=`<div class="strip">`+q.labels.map(l=>{
+      const L=ans[l]?byK(ans[l]):null;
+      const cls=!L||!L.w?'un':(L.w==='正'?'sei':'go');
+      return `<div><span>${esc(l)}</span><span class="v ${cls}">${L?L.label:'—'}</span></div>`;
+    }).join('')+`</div>`;
+  }
+
+  /* 記述＋判定 */
+  h+=`<div class="card"><div class="eyebrow">記述ごとの判断</div>`;
+  q.statements.forEach(s=>{
+    const my=ans[s.label];
+    h+=`<div class="st"><div class="st-head"><div class="st-label">${esc(s.label)}</div><div class="st-text">${esc(s.text)}</div></div>`;
+    h+=`<div class="pad" data-l="${esc(s.label)}">`+
+       LEVELS.map(L=>`<button data-k="${L.k}" class="${my===L.k?'on':''}">${L.label}</button>`).join('')+`</div>`;
+    if(revealed){
+      const ok = my && byK(my).w===s.truth;
+      h+=`<div class="res"><span class="tag ${s.truth==='正'?'sei':'go'}">正解 ${s.truth}</span>`+
+         (my?`<span class="tag ${ok?'sei':'bad'}">${ok?'一致':'ズレ'}</span>`:'')+`</div>`;
+      if(s.explain) h+=`<div class="explain">${esc(s.explain)}</div>`;
+    }
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+
+  /* 候補パネル */
+  if((showCands||revealed)&&!hasOpts){
+    h+=`<div class="card"><div class="eyebrow">選択肢の候補</div>
+      <p class="note">この問題は選択肢の組合せ表が未取得です。上に貼り付けた判定と原本画像を見比べてください。`+
+      (revealed?` 正解は ${q.answer}。`:'')+`</p></div>`;
+  }else if(showCands||revealed){
+    h+=`<div class="card"><div class="eyebrow">選択肢の候補</div><table class="matrix"><tr><th></th>`+
+       q.labels.map(l=>`<th>${esc(l)}</th>`).join('')+`</tr>`;
+    evals.forEach(e=>{
+      const cls=[e.alive?'alive':'dead', (revealed&&e.o.no===q.answer)?'correct':''].join(' ');
+      h+=`<tr class="${cls}"><td class="mnum">${e.o.no}</td>`+
+         q.labels.map(l=>`<td class="cell ${cellState(ans[l],e.o.pattern[l])}">${esc(e.o.pattern[l])}</td>`).join('')+`</tr>`;
+    });
+    h+=`</table>`;
+    if(!answered && !revealed){
+      h+=`<div class="verdict">まだ判断していない記述があります。残り候補：${alive.map(e=>e.o.no).join('・')||'なし'}</div>`;
+    }else if(alive.length===0){
+      h+=`<div class="verdict warn">どの選択肢とも矛盾しています。強く決めた○／✕のどれかを△に戻して確かめてください。</div>`;
+    }else if(alive.length===1){
+      h+=`<div class="verdict ok">候補は ${alive[0].o.no} の1つに絞れます。</div>`;
+    }else{
+      const best=[...alive].sort((a,b)=>b.score-a.score);
+      h+=`<div class="verdict">候補：${alive.map(e=>e.o.no).join('・')}（△の重みで有力なのは ${best[0].o.no}）</div>`;
+    }
+    if(revealed) h+=`<div class="verdict ${alive.some(e=>e.o.no===q.answer)?'ok':'warn'}">正解は ${q.answer}。</div>`;
+    h+=`</div>`;
+  }
+
+  /* 復習マーク */
+  if(revealed){
+    const m=prog[q.id]?.mark;
+    h+=`<div class="card"><div class="eyebrow">この問題の扱い</div>
+      <div class="mark">
+        <button data-m="ok"   class="${m==='ok'?'on':''}">○ 定着した</button>
+        <button data-m="soft" class="${m==='soft'?'on':''}">△ 当たったが要復習</button>
+        <button data-m="ng"   class="${m==='ng'?'on':''}">✕ 要復習</button>
+      </div>
+      ${q.sourceUrl?`<p class="note" style="margin-top:10px"><a href="${esc(q.sourceUrl)}" target="_blank" rel="noopener">出典ページを開く</a></p>`:''}
+    </div>`;
+  }
+  app.innerHTML=h;
+
+  document.getElementById('btnCheck').textContent = revealed?'候補を再表示':(showCands?'答え合わせ':'候補を見る');
+}
+
+/* ============ 操作 ============ */
+app.addEventListener('click',e=>{
+  const pad=e.target.closest('.pad button');
+  if(pad){
+    const l=pad.parentElement.dataset.l, k=pad.dataset.k;
+    ans[l]=(ans[l]===k)?null:k; render(); return;
+  }
+  const mk=e.target.closest('.mark button');
+  if(mk){
+    const q=queue[idx];
+    prog[q.id]={mark:mk.dataset.m,at:Date.now()}; saveJSON('trh.prog',prog); render(); return;
+  }
+});
+document.getElementById('btnCheck').onclick=()=>{
+  if(!showCands){showCands=true} else {revealed=true}
+  render(); window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+};
+document.getElementById('btnNext').onclick=()=>{if(idx<queue.length-1){idx++;resetQ();scrollTo(0,0)}};
+document.getElementById('btnPrev').onclick=()=>{if(idx>0){idx--;resetQ();scrollTo(0,0)}};
+
+/* ============ シート ============ */
+const open=id=>document.getElementById(id).classList.add('open');
+const close=id=>document.getElementById(id).classList.remove('open');
+document.querySelectorAll('.sheet').forEach(s=>s.addEventListener('click',e=>{if(e.target===s)s.classList.remove('open')}));
+
+function chk(box,items,sel){
+  box.innerHTML=items.map(v=>`<label><input type="checkbox" value="${esc(v)}" ${(!sel||sel.includes(v))?'checked':''}><span>${esc(v)}</span></label>`).join('');
+}
+document.getElementById('btnScope').onclick=()=>{
+  chk(document.getElementById('gPref'),allPrefs(),cfg.prefs);
+  chk(document.getElementById('gYear'),allYears(),cfg.years);
+  document.getElementById('gMode').innerHTML=[['seq','年度順'],['rand','ランダム'],['review','要復習のみ']]
+    .map(([v,t])=>`<label><input type="radio" name="mode" value="${v}" ${cfg.mode===v?'checked':''}><span>${t}</span></label>`).join('');
+  open('shScope');
+};
+document.querySelectorAll('[data-all],[data-none]').forEach(b=>b.onclick=()=>{
+  const id=b.dataset.all||b.dataset.none;
+  document.querySelectorAll(`#g${id==='pref'?'Pref':'Year'} input`).forEach(i=>i.checked=!!b.dataset.all);
+});
+document.getElementById('btnApply').onclick=()=>{
+  const pick=id=>[...document.querySelectorAll(`#${id} input:checked`)].map(i=>i.value);
+  const p=pick('gPref'), y=pick('gYear');
+  cfg.prefs = p.length===allPrefs().length?null:p;
+  cfg.years = y.length===allYears().length?null:y;
+  cfg.mode  = document.querySelector('input[name=mode]:checked')?.value||'seq';
+  saveJSON('trh.cfg',cfg); close('shScope'); buildQueue(); scrollTo(0,0);
+};
+
+document.getElementById('btnSet').onclick=()=>{
+  document.getElementById('rgFs').value=cfg.fs;
+  document.getElementById('ckImg').checked=!!cfg.img;
+  document.getElementById('dataInfo').textContent=`読込中：${BANK.length}問（${allPrefs().length}地域／${allYears().length}年度）`;
+  open('shSet');
+};
+document.getElementById('rgFs').oninput=e=>{cfg.fs=+e.target.value;document.documentElement.style.setProperty('--fs',cfg.fs+'px');saveJSON('trh.cfg',cfg)};
+document.getElementById('ckImg').onchange=e=>{cfg.img=e.target.checked;saveJSON('trh.cfg',cfg);render()};
+document.getElementById('btnLoad').onclick=()=>document.getElementById('fileJson').click();
+document.getElementById('fileJson').onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{try{
+    const d=JSON.parse(r.result); const arr=Array.isArray(d)?d:d.questions;
+    if(!Array.isArray(arr)||!arr.length) throw 0;
+    const map=new Map((BANK===DEMO?[]:BANK).map(q=>[q.id,q]));
+    arr.forEach(q=>map.set(q.id,q));
+    BANK=[...map.values()];
+    idb.set('bank',BANK);
+    cfg.prefs=null;cfg.years=null; saveJSON('trh.cfg',cfg);
+    close('shSet'); buildQueue();
+    alert(`${arr.length}問を読み込みました。合計 ${BANK.length}問。`);
+  }catch(err){alert('読み込めませんでした。scraper.py が出力した JSON を選んでください。')}};
+  r.readAsText(f,'utf-8');
+};
+document.getElementById('btnReset').onclick=()=>{
+  if(!confirm('学習記録と読み込んだ問題データを消します。よろしいですか。'))return;
+  ['trh.prog','trh.bank','trh.cfg'].forEach(k=>store.del(k));
+  idb.clear().then(()=>location.reload());
+};
+
+/* ============ 起動 ============ */
+document.documentElement.style.setProperty('--fs',(cfg.fs||16)+'px');
+buildQueue();
+idb.get('bank').then(b=>{ if(Array.isArray(b)&&b.length){ BANK=b; buildQueue(); } });
+</script>
+</body>
+</html>
