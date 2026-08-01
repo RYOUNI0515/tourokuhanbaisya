@@ -145,6 +145,16 @@ input[type=range]{width:100%}
   border-radius:9px;padding:6px 10px;font-weight:800;font-size:.85rem;box-shadow:0 1px 3px rgba(20,32,42,.06)}
 .strip .v{font-size:.95rem}
 .strip .sei{color:var(--sei)} .strip .go{color:var(--go)} .strip .un{color:var(--unknown)}
+/* 最終解答ピッカー */
+.pick{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px}
+.pick button{border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:14px 0;font-weight:800;font-size:1rem}
+.pick button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pick button.right{background:var(--sei);color:#fff;border-color:var(--sei)}
+.pick button.wrong{background:var(--go);color:#fff;border-color:var(--go)}
+.blank{display:flex;gap:10px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.blank:first-of-type{border-top:none}
+.blank .v{flex:1;font-weight:700;color:var(--sei)}
+.blank .hidden{color:var(--unknown);font-weight:400}
 </style>
 </head>
 <body>
@@ -295,13 +305,25 @@ const DEMO=[
     options:[1,2,3,4,5].map(n=>({no:n,pattern:Object.fromEntries([1,2,3,4,5].map(m=>[String(m),m===n?"誤":"正"]))})),
     answer:3
   }
+  ,{
+    id:"demo-r6-004",prefName:"デモ県",yearName:"令和6年度",no:41,
+    subject:"法規",theme:"穴埋め型",type:"anaume",
+    stem:"次の条文について、（ ）に入れるべき字句の正しい組合せはどれか。",
+    labels:["a","b","c"],
+    statements:[
+      {label:"a",text:"",fill:"（ダミー語句A）",truth:null,explain:"ここは頻出。もう一方の候補と混同しやすい。"},
+      {label:"b",text:"",fill:"（ダミー語句B）",truth:null,explain:"対象外のものが並べられる。"},
+      {label:"c",text:"",fill:"（ダミー語句C）",truth:null,explain:"定番のキーワード。"}
+    ],
+    options:[],answer:5
+  }
 ];
 
 /* ============ 状態 ============ */
 let BANK   = DEMO;
 let cfg    = loadJSON('trh.cfg', {prefs:null,years:null,mode:'seq',fs:16,img:false});
 let prog   = loadJSON('trh.prog', {});      // id -> {mark:'ok|soft|ng', at}
-let queue=[], idx=0, ans={}, revealed=false, showCands=false;
+let queue=[], idx=0, ans={}, pick=null, revealed=false, showCands=false;
 
 const uniq=a=>[...new Set(a)];
 const allPrefs=()=>uniq(BANK.map(q=>q.prefName));
@@ -315,7 +337,7 @@ function buildQueue(){
   else list.sort((a,b)=> (a.prefName+a.yearName).localeCompare(b.prefName+b.yearName) || a.no-b.no);
   queue=list; idx=0; resetQ();
 }
-function resetQ(){ans={};revealed=false;showCands=false;render()}
+function resetQ(){ans={};pick=null;revealed=false;showCands=false;render()}
 
 /* ============ 候補計算 ============ */
 function cellState(k,val){
@@ -362,7 +384,8 @@ function render(){
 
   /* 組合せ表が無い問題：自分の判定を画面上部に貼り付けて、暗記せずに原本と照合できるようにする */
   const hasOpts=Array.isArray(q.options)&&q.options.length;
-  if(!hasOpts){
+  const isFill=q.type==='anaume';
+  if(!hasOpts&&!isFill){
     h+=`<div class="strip">`+q.labels.map(l=>{
       const L=ans[l]?byK(ans[l]):null;
       const cls=!L||!L.w?'un':(L.w==='正'?'sei':'go');
@@ -371,20 +394,44 @@ function render(){
   }
 
   /* 記述＋判定 */
-  h+=`<div class="card"><div class="eyebrow">記述ごとの判断</div>`;
-  q.statements.forEach(s=>{
-    const my=ans[s.label];
-    h+=`<div class="st"><div class="st-head"><div class="st-label">${esc(s.label)}</div><div class="st-text">${esc(s.text)}</div></div>`;
-    h+=`<div class="pad" data-l="${esc(s.label)}">`+
-       LEVELS.map(L=>`<button data-k="${L.k}" class="${my===L.k?'on':''}">${L.label}</button>`).join('')+`</div>`;
-    if(revealed){
-      const ok = my && byK(my).w===s.truth;
-      h+=`<div class="res"><span class="tag ${s.truth==='正'?'sei':'go'}">正解 ${s.truth}</span>`+
-         (my?`<span class="tag ${ok?'sei':'bad'}">${ok?'一致':'ズレ'}</span>`:'')+`</div>`;
-      if(s.explain) h+=`<div class="explain">${esc(s.explain)}</div>`;
-    }
+  if(isFill){
+    h+=`<div class="card"><div class="eyebrow">空欄に入る語句</div>`;
+    q.statements.forEach(s=>{
+      h+=`<div class="blank"><div class="st-label">${esc(s.label)}</div>`+
+         (revealed?`<div class="v">${esc(s.fill||'')}</div>`
+                  :`<div class="v hidden">まず思い出してから答え合わせ</div>`)+`</div>`;
+      if(revealed&&s.explain) h+=`<div class="explain">${esc(s.explain)}</div>`;
+    });
     h+=`</div>`;
-  });
+  }else{
+    h+=`<div class="card"><div class="eyebrow">記述ごとの判断</div>`;
+    q.statements.forEach(s=>{
+      const my=ans[s.label];
+      h+=`<div class="st"><div class="st-head"><div class="st-label">${esc(s.label)}</div><div class="st-text">${esc(s.text)}</div></div>`;
+      h+=`<div class="pad" data-l="${esc(s.label)}">`+
+         LEVELS.map(L=>`<button data-k="${L.k}" class="${my===L.k?'on':''}">${L.label}</button>`).join('')+`</div>`;
+      if(revealed){
+        const ok = my && byK(my).w===s.truth;
+        h+=`<div class="res"><span class="tag ${s.truth==='正'?'sei':'go'}">正解 ${s.truth}</span>`+
+           (my?`<span class="tag ${ok?'sei':'bad'}">${ok?'一致':'ズレ'}</span>`:'')+`</div>`;
+        if(s.explain) h+=`<div class="explain">${esc(s.explain)}</div>`;
+      }
+      h+=`</div>`;
+    });
+    h+=`</div>`;
+  }
+
+  /* 最終解答。組合せ表が無い問題でも必ず自分の答えを記録できるようにする */
+  const nOpt=hasOpts?q.options.length:5;
+  h+=`<div class="card"><div class="eyebrow">あなたの解答</div><div class="pick">`+
+     Array.from({length:nOpt},(_,i)=>i+1).map(n=>{
+       let cls=pick===n?'on':'';
+       if(revealed&&n===q.answer) cls='right';
+       else if(revealed&&pick===n) cls='wrong';
+       return `<button data-p="${n}" class="${cls}">${n}</button>`;
+     }).join('')+`</div>`;
+  if(revealed) h+=`<div class="verdict ${pick===q.answer?'ok':'warn'}">`+
+     (pick==null?`正解は ${q.answer}。`:(pick===q.answer?`正解。`:`不正解。正解は ${q.answer}。`))+`</div>`;
   h+=`</div>`;
 
   /* 候補パネル */
@@ -439,6 +486,8 @@ app.addEventListener('click',e=>{
     const l=pad.parentElement.dataset.l, k=pad.dataset.k;
     ans[l]=(ans[l]===k)?null:k; render(); return;
   }
+  const pk=e.target.closest('.pick button');
+  if(pk){ const n=+pk.dataset.p; pick=(pick===n)?null:n; render(); return; }
   const mk=e.target.closest('.mark button');
   if(mk){
     const q=queue[idx];
@@ -446,7 +495,9 @@ app.addEventListener('click',e=>{
   }
 });
 document.getElementById('btnCheck').onclick=()=>{
-  if(!showCands){showCands=true} else {revealed=true}
+  const q=queue[idx];
+  const skip=q&&(q.type==='anaume'||!(Array.isArray(q.options)&&q.options.length));
+  if(!showCands&&!skip){showCands=true} else {revealed=true}
   render(); window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
 };
 document.getElementById('btnNext').onclick=()=>{if(idx<queue.length-1){idx++;resetQ();scrollTo(0,0)}};
