@@ -214,6 +214,9 @@ input[type=range]{width:100%}
   <div class="row"><strong style="font-size:.82rem">年度</strong><span class="spacer"></span>
     <button class="chip" data-all="year">全選択</button><button class="chip" data-none="year">全解除</button></div>
   <div class="grid" id="gYear"></div>
+  <div class="row"><strong style="font-size:.82rem">科目</strong><span class="spacer"></span>
+    <button class="chip" data-all="subj">全選択</button><button class="chip" data-none="subj">全解除</button></div>
+  <div class="grid" id="gSubj"></div>
   <div class="row"><strong style="font-size:.82rem">出題順</strong></div>
   <div class="grid" id="gMode"></div>
   <div class="row"><button class="chip" id="btnApply" style="flex:1;padding:13px;background:var(--ink);color:#fff;border-color:var(--ink)">この範囲で始める</button></div>
@@ -350,10 +353,12 @@ let queue=[], idx=0, ans={}, pick=null, revealed=false, showCands=false;
 const uniq=a=>[...new Set(a)];
 const allPrefs=()=>uniq(BANK.map(q=>q.prefName));
 const allYears=()=>uniq(BANK.map(q=>q.yearName));
+const allSubjects=()=>uniq(BANK.map(q=>q.subject).filter(Boolean));
 
 function buildQueue(){
-  const P=cfg.prefs, Y=cfg.years;
-  let list=BANK.filter(q=>(!P||P.includes(q.prefName))&&(!Y||Y.includes(q.yearName)));
+  const P=cfg.prefs, Y=cfg.years, S=cfg.subjects;
+  let list=BANK.filter(q=>(!P||P.includes(q.prefName))&&(!Y||Y.includes(q.yearName))
+                        &&(!S||S.includes(q.subject)));
   if(cfg.mode==='review') list=list.filter(q=>['ng','soft'].includes(prog[q.id]?.mark));
   if(cfg.mode==='rand')   list=list.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(v=>v[1]);
   else list.sort((a,b)=> (a.prefName+a.yearName).localeCompare(b.prefName+b.yearName) || a.no-b.no);
@@ -580,19 +585,22 @@ function chk(box,items,sel){
 document.getElementById('btnScope').onclick=()=>{
   chk(document.getElementById('gPref'),allPrefs(),cfg.prefs);
   chk(document.getElementById('gYear'),allYears(),cfg.years);
+  chk(document.getElementById('gSubj'),allSubjects(),cfg.subjects);
   document.getElementById('gMode').innerHTML=[['seq','年度順'],['rand','ランダム'],['review','要復習のみ']]
     .map(([v,t])=>`<label><input type="radio" name="mode" value="${v}" ${cfg.mode===v?'checked':''}><span>${t}</span></label>`).join('');
   open('shScope');
 };
 document.querySelectorAll('[data-all],[data-none]').forEach(b=>b.onclick=()=>{
   const id=b.dataset.all||b.dataset.none;
-  document.querySelectorAll(`#g${id==='pref'?'Pref':'Year'} input`).forEach(i=>i.checked=!!b.dataset.all);
+  const box={pref:'gPref',year:'gYear',subj:'gSubj'}[id];
+  document.querySelectorAll(`#${box} input`).forEach(i=>i.checked=!!b.dataset.all);
 });
 document.getElementById('btnApply').onclick=()=>{
   const pick=id=>[...document.querySelectorAll(`#${id} input:checked`)].map(i=>i.value);
-  const p=pick('gPref'), y=pick('gYear');
+  const p=pick('gPref'), y=pick('gYear'), sj=pick('gSubj');
   cfg.prefs = p.length===allPrefs().length?null:p;
   cfg.years = y.length===allYears().length?null:y;
+  cfg.subjects = sj.length===allSubjects().length?null:sj;
   cfg.mode  = document.querySelector('input[name=mode]:checked')?.value||'seq';
   saveJSON('trh.cfg',cfg); close('shScope'); buildQueue(); scrollTo(0,0);
 };
@@ -616,7 +624,7 @@ document.getElementById('fileJson').onchange=e=>{
     arr.forEach(q=>map.set(q.id,q));
     BANK=[...map.values()];
     idb.set('bank',BANK);
-    cfg.prefs=null;cfg.years=null; saveJSON('trh.cfg',cfg);
+    cfg.prefs=null;cfg.years=null;cfg.subjects=null; saveJSON('trh.cfg',cfg);
     close('shSet'); buildQueue();
     alert(`${arr.length}問を読み込みました。合計 ${BANK.length}問。`);
   }catch(err){alert('読み込めませんでした。scraper.py が出力した JSON を選んでください。')}};
